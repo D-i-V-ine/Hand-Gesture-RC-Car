@@ -1,10 +1,10 @@
 #include <Arduino.h>
 #include <SoftwareSerial.h>
 
-int IN1 = 1;
-int IN2 = 2;
-int IN3 = 3;
-int IN4 = 4;
+int IN1 = 4;
+int IN2 = 5;
+int IN3 = 6;
+int IN4 = 7;
 
 int stateX = 0;
 int stateY = 0;
@@ -16,6 +16,7 @@ void right();
 void left();
 
 SoftwareSerial slaveBT(10, 11); // RX, TX
+
 void setup()
 {
   slaveBT.begin(9600);
