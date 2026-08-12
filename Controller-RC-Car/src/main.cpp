@@ -74,14 +74,14 @@ void loop()
 
 // Convert gyro direction into a 2-digit movement state.
 //
-// 1 = motor ON / movement
-// 0 = motor OFF / stop
+// 1 = positive gyro direction
+// 0 = negative gyro direction
 //
 // The extra leading 1 is added to distinguish these movement states
 // from normal Boolean values (0/1):
 //
 //     11 -> ON  (positive gyro direction)
-//     10 -> OFF (negative gyro direction / stop)
+//     10 -> OFF (negative gyro direction)
 //
 // The encoded value is later combined with the axis identifier (900,800)
 // to form the final Bluetooth command.
