@@ -1,14 +1,25 @@
 #include <Arduino.h>
 #include <MPU6500.h>
 
+// ============================================================
+// MPU6500 Gyroscope Bias & Accelerometer Calibration
+// Comment work done by AI....
+// ============================================================
+
 MPU6500 imu;
 
 static int samples = 500;
+
+// Stores accelerometer calibration parameters.
 struct values
 {
   float offset = 0;
   float scale = 0;
 };
+
+// ============================================================
+// Serial Input Function
+// ============================================================
 
 void waitforit()
 {
@@ -27,6 +38,10 @@ void waitforit()
     Serial.read();
   }
 };
+
+// ============================================================
+// Accelerometer Sample Averaging
+// ============================================================
 
 float axisAvg(char axis)
 {
@@ -55,9 +70,14 @@ float axisAvg(char axis)
 
 double gx = 0, gy = 0, gz = 0;
 
+// ============================================================
+// Setup & Calibration
+// ============================================================
+
 void setup()
 {
   Serial.begin(115200);
+
   if (!imu.begin())
   {
     Serial.println("MPU6500 not found");
@@ -66,8 +86,13 @@ void setup()
       delay(100);
     }
   }
+
   Serial.println("MPU6500 initialized\n");
-  
+
+  // ==========================================================
+  // Gyroscope Bias Calibration
+  // ==========================================================
+
   Serial.println("Keep the MPU6500 stationary \nGyro Bias Calibrating...\n");
 
   for (int i = 0; i < samples; i++)
@@ -80,7 +105,7 @@ void setup()
     gz += (g.z);
     delay(5);
   }
-  
+
   Serial.println("Gyro Bias : ");
   Serial.print("X : ");
   Serial.print(gx / (float)samples);
@@ -88,11 +113,15 @@ void setup()
   Serial.print(gy / (float)samples);
   Serial.print(" || Z : ");
   Serial.println(gz / (float)samples);
+
   delay(1000);
-  
-  
+
+  // ==========================================================
+  // Accelerometer Calibration
+  // ==========================================================
+
   Serial.println("\nAccelerometer Calibration...");
-  
+
   Serial.println("\nKeep the +x UP...");
   waitforit();
   Serial.print("X : ");
@@ -127,7 +156,7 @@ void setup()
   float negY = axisAvg('y');
   Serial.println(negY, 6);
   delay(500);
-  
+
   Serial.println("\nKeep the -z UP...");
   waitforit();
   Serial.print("-z : ");
@@ -135,7 +164,12 @@ void setup()
   Serial.println(negZ, 6);
   delay(500);
 
+  // ==========================================================
+  // Accelerometer Calibration Parameters
+  // ==========================================================
+
   values x, y, z;
+
   x.offset = (posX + negX) / 2.0;
   y.offset = (posY + negY) / 2.0;
   z.offset = (posZ + negZ) / 2.0;
@@ -144,7 +178,12 @@ void setup()
   y.scale = 2.0 / (posY - negY);
   z.scale = 2.0 / (posZ - negZ);
 
+  // ==========================================================
+  // Results
+  // ==========================================================
+
   Serial.println("\n\nacceleration offset and scale : \n");
+
   Serial.println("offset : ");
   Serial.print("x : ");
   Serial.print(x.offset, 6);
@@ -160,7 +199,6 @@ void setup()
   Serial.print(y.scale, 6);
   Serial.print(" || z : ");
   Serial.println(z.scale, 6);
-
 }
 
 void loop()
