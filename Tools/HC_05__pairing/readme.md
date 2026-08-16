@@ -220,5 +220,5 @@ The `9600` configured with `AT+UART=9600,0,0` is the normal Bluetooth UART speed
 > **Wiring:** The Arduino's TX pin should connect to the HC-05's RX pin, and the Arduino's RX pin should connect to the HC-05's TX pin.
 
 <p align="center">
-  <img src="HC-05__Wiring.png" alt="HC-05 Wiring" width="700">
+  <img src="HC_05__wiring.png" alt="HC_05__wiring" width="700">
 </p>
