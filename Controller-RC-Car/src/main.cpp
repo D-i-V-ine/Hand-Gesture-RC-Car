@@ -17,12 +17,12 @@ public:
     }
 };
 
-LPF lpfRoll, lpfPitch, lpfYaw;
+LPF lpfRoll, lpfPitch;
 
 float accX, accY, accZ;
 float gyroX, gyroY, gyroZ;
 
-float roll, pitch, yaw;
+float roll, pitch ;
 
 unsigned long lastTime = 0;
 
@@ -34,9 +34,9 @@ void setup()
 {
     Serial.begin(115200);
     masterBT.begin(9600);
-    filter.begin(100); // Initialize the Madgwick filter with a sample rate of 100 Hz
+    filter.begin(100); 
 
-    // Initialize and verify MPU6500
+  
     if (!imu.begin())
     {
         Serial.println("Failed to initialize MPU6500");
