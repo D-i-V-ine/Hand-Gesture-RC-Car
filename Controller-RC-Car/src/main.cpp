@@ -16,10 +16,10 @@ public:
     }
 };
 
+MPU6500 imu; // IMU object 
 Madgwick filter; // Sensor fusion: gyro + accelerometer
-MPU6500 imu;
 SoftwareSerial masterBT(10, 11); // RX, TX
-LPF lpfRoll, lpfPitch;           // Smooth final orientation
+LPF lpfRoll, lpfPitch; // Smooth final orientation
 
 unsigned long lastTime = 0; // Used for 100 Hz timing
 const int redLed = 3;
@@ -29,7 +29,7 @@ void setup()
     pinMode(redLed, OUTPUT);
 
     masterBT.begin(9600); // HC-05 baud rate
-    filter.begin(100);    // Madgwick update rate
+    filter.begin(100); // Madgwick update rate
 
     imu.setSampleRateHz(100); // IMU sample rate in Hz
 
@@ -51,7 +51,7 @@ void loop()
 
         imu.update();
 
-        Vec3 acc = imu.accelG();   // Acceleration in g
+        Vec3 acc = imu.accelG(); // Acceleration in g
         Vec3 gyro = imu.gyroDps(); // Gyroscope in °/s
 
         // Accelerometer calibration

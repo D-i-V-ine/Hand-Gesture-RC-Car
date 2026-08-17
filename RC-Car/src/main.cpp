@@ -28,6 +28,7 @@ void setup()
 
 void loop()
 {
+
   if (slaveBT.available())
   {
     String command = slaveBT.readStringUntil('\n');
@@ -134,3 +135,5 @@ void right()
   digitalWrite(IN3, HIGH);
   digitalWrite(IN4, LOW);
 };
+
+

@@ -95,6 +95,44 @@ Use the wiring diagram below for the Arduino Nano and HC-05 connections.
   <img src="HC_05__wiring.png" alt="HC-05 wiring" width="700">
 </p>
 
+#### TX Voltage Divider
+
+The HC-05's **RX input is a 3.3 V logic input**, while the Arduino Nano uses 5 V logic.
+
+To protect the HC-05 RX input, use a voltage divider between:
+
+```text
+Arduino Nano TX → HC-05 RX
+```
+
+A suitable divider is:
+
+```text
+Arduino Nano TX
+      │
+     1 kΩ
+      │
+      ├────────── HC-05 RX
+      │
+     2 kΩ
+      │
+     GND
+```
+
+This produces approximately **3.3 V** at the HC-05 RX pin from the Nano's 5 V TX signal.
+
+The opposite direction does not require a divider:
+
+```text
+HC-05 TX → Arduino Nano RX
+```
+
+The HC-05's 3.3 V TX signal can be read by the Nano as a HIGH.
+
+> **Important:** The voltage divider is required on the **Arduino TX → HC-05 RX** line, not on the HC-05 TX → Arduino RX line.
+
+
+
 ### Test AT Communication
 
 With the HC-05 in AT mode, send:
