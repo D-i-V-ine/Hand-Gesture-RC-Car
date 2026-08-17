@@ -1,8 +1,8 @@
 # HC-05 Master–Slave Configuration
 
-This document records the configuration procedure used to pair two HC-05 modules as a **Master–Slave Bluetooth link** for the RC car.
+This document describes the configuration used to pair two HC-05 Bluetooth modules as a **Master–Slave link** for the RC car.
 
-The goal is to configure one HC-05 on the controller side as the **Master** and the other on the car as the **Slave**, allowing the two modules to reconnect automatically.
+The **Master** is connected to the controller, while the **Slave** is connected to the RC car. Once configured, the Master can automatically reconnect to the Slave.
 
 ---
 
@@ -10,19 +10,94 @@ The goal is to configure one HC-05 on the controller side as the **Master** and 
 
 * 2 × HC-05 Bluetooth modules
 * 2 × Arduino Nano
-* USB/serial connection for AT-mode configuration
+* USB connection for programming the Arduino Nano
 
 ---
 
 ## 1. Enter AT Mode
 
-For each HC-05:
+The HC-05 must be placed in **AT mode** before changing its configuration.
 
-1. Disconnect the module from power.
-2. Press and hold the **KEY/EN** button.
+For each module:
+
+1. Disconnect the HC-05 from power.
+2. Press and hold the **KEY/EN button**.
 3. Power the module while holding the button.
-4. Release the button after the module enters AT mode. This is usually indicated by a slower LED blink pattern.
-5. Open a serial terminal and send:
+4. Release the button after the module enters AT mode.
+5. The LED will normally blink at a slower rate when AT mode is active.
+
+### Arduino Nano AT-Mode Bridge
+
+Upload this code to the Arduino Nano connected to the HC-05:
+
+```cpp
+#include <SoftwareSerial.h>
+
+SoftwareSerial BT(10, 11); // Arduino RX, TX
+
+void setup()
+{
+    Serial.begin(9600);
+    BT.begin(38400);
+
+    Serial.println("HC-05 AT Mode");
+    Serial.println("Serial Monitor : 9600");
+    Serial.println("HC-05 AT Mode  : 38400");
+}
+
+void loop()
+{
+    if (Serial.available())
+    {
+        BT.write(Serial.read());
+    }
+
+    if (BT.available())
+    {
+        Serial.write(BT.read());
+    }
+}
+```
+
+The Arduino acts as a simple serial bridge:
+
+```text
+PC Serial Monitor
+       │
+       │ 9600 baud
+       ▼
+ Arduino Nano
+       │
+       │ 38400 baud
+       ▼
+     HC-05
+```
+
+Open the Arduino Serial Monitor at:
+
+```text
+9600 baud
+```
+
+The HC-05 is communicated with internally at:
+
+```text
+38400 baud
+```
+
+> **Note:** 38400 baud is the commonly used AT-mode baud rate for HC-05 modules. Some HC-05 variants use a different AT-mode baud rate.
+
+### Wiring
+
+Use the wiring diagram below for the Arduino Nano and HC-05 connections.
+
+<p align="center">
+  <img src="HC_05__wiring.png" alt="HC-05 wiring" width="700">
+</p>
+
+### Test AT Communication
+
+With the HC-05 in AT mode, send:
 
 ```text
 AT
@@ -34,101 +109,99 @@ Expected response:
 OK
 ```
 
-The AT-mode baud rate can vary between HC-05 variants. Confirm communication with `AT` before continuing.
+You can also check the firmware:
+
+```text
+AT+VERSION?
+```
+
+The exact response depends on the HC-05 firmware.
+
+> If `AT` does not return `OK`, verify that the module is actually in AT mode and that the AT-mode baud rate matches the module.
 
 ---
 
 ## 2. Configure the Slave
 
-The Slave is the HC-05 connected to the **RC car**.
+The **Slave** is the HC-05 installed on the RC car.
 
-### Reset configuration — optional
+If the module already has a known configuration, `AT+ORGL` can be skipped.
 
-`AT+ORGL` restores the module's stored configuration to its factory/default settings.
-
-It is **not required** when the module is already in a known configuration. Use it when starting with a fresh configuration or when previous settings need to be cleared.
+For a fresh configuration, optionally reset it:
 
 ```text
 AT+ORGL
 ```
 
-Then configure the Slave:
+Configure the Slave:
 
 ```text
 AT+ROLE=0
 AT+NAME=RC_CAR_SLAVE
-AT+UART=9600,0,0
+AT+UART=38400,0,0
 ```
 
-Obtain the Slave's Bluetooth address:
+Now obtain its Bluetooth address:
 
 ```text
 AT+ADDR?
 ```
 
-Expected response:
+Example response:
 
 ```text
-+ADDR:<SLAVE_ADDR>
++ADDR:1234:56:ABCDEF
 ```
 
-Save this address. It will be used when configuring the Master.
+Save this address. It will be required when configuring the Master.
 
 ---
 
 ## 3. Configure the Master
 
-The Master is the HC-05 connected to the **controller**.
+The **Master** is the HC-05 installed on the controller.
 
-### Reset configuration — optional
-
-If the Master already has a known configuration, `AT+ORGL` can be skipped.
-
-Otherwise, reset it:
+If required, reset its previous configuration:
 
 ```text
 AT+ORGL
 ```
 
-Then configure the Master:
+Configure the Master:
 
 ```text
 AT+ROLE=1
 AT+NAME=RC_CAR_MASTER
-AT+UART=9600,0,0
+AT+UART=38400,0,0
 ```
 
-Bind the Master to the Slave:
+Set the Slave as the device to connect to:
 
 ```text
 AT+BIND=<SLAVE_ADDR>
 ```
 
-Replace `<SLAVE_ADDR>` with the address obtained from the Slave.
+Replace `<SLAVE_ADDR>` with the address obtained in the previous step.
 
-Expected response:
+For example:
 
 ```text
-OK
+AT+BIND=1234:56:ABCDEF
 ```
 
-Then set the Master to connect only to the bound device:
+Then enable fixed-address connection mode:
 
 ```text
 AT+CMODE=0
 ```
 
-Expected response:
-
-```text
-OK
-```
-
-`AT+BIND` specifies the Slave that the Master should connect to, while `AT+CMODE=0` puts the Master into fixed-address mode.
+This makes the Master connect to the device specified by `AT+BIND`.
 
 ---
 
 ## 4. Verify the Configuration
+
+Before leaving AT mode, verify both modules.
 
 ### Master
 
@@ -139,7 +212,7 @@ AT+CMODE?
 AT+UART?
 ```
 
-Expected configuration:
+The important settings should be:
 
 ```text
 ROLE  = 1
@@ -152,57 +225,51 @@ UART  = 9600,0,0
 
 ```text
 AT+ROLE?
-AT+UART?
 AT+ADDR?
+AT+UART?
 ```
 
-Expected configuration:
+The important settings should be:
 
 ```text
 ROLE = 0
-UART = 9600,0,0
 ADDR = <Slave address>
+UART = 9600,0,0
 ```
 
-Final configuration:
+### Final Configuration
 
 ```text
-Master → ROLE = 1
-Slave  → ROLE = 0
+Master → ROLE  = 1
+Slave  → ROLE  = 0
 
-Both   → UART = 9600
-Master → BIND = Slave address
+Master → BIND  = Slave address
 Master → CMODE = 0
+
+Both   → UART  = 9600,0,0
 ```
 
 ---
 
 ## 5. Return to Normal Mode
 
-Turn both HC-05 modules off and on again **without pressing or holding the KEY/EN button**.
+Power-cycle both HC-05 modules **without pressing the KEY/EN button**.
 
-They should now operate in normal Bluetooth mode.
+They will now start in normal Bluetooth mode.
 
-The Master should automatically attempt to connect to the configured Slave.
+The Master should attempt to connect automatically to the configured Slave.
 
-LED blink patterns can differ between HC-05 variants, so use actual Bluetooth data transfer to confirm that the connection is working.
+Because LED blink patterns vary between HC-05 firmware versions, verify the connection by transferring actual Bluetooth data rather than relying only on the LED.
 
----
+This is configured using:
 
-## 6. Normal UART Configuration
-
-The HC-05 is configured for:
-
-```text
-Baud rate : 9600
-Data      : 8 bits
-Parity    : None
-Stop bits : 1
+```
+AT+UART=9600,0,0
 ```
 
-This project uses `SoftwareSerial` for communication between the Arduino and HC-05.
+The project uses `SoftwareSerial` for communication between the Arduino and HC-05.
 
-```cpp
+```
 #include <SoftwareSerial.h>
 
 SoftwareSerial BT(RX_PIN, TX_PIN);
@@ -210,15 +277,5 @@ SoftwareSerial BT(RX_PIN, TX_PIN);
 void setup()
 {
     BT.begin(9600);
-}
+};
 ```
-
-Replace `RX_PIN` and `TX_PIN` with the pins used in the project.
-
-The `9600` configured with `AT+UART=9600,0,0` is the normal Bluetooth UART speed. The baud rate used while communicating with the module in AT mode may be different.
-
-> **Wiring:** The Arduino's TX pin should connect to the HC-05's RX pin, and the Arduino's RX pin should connect to the HC-05's TX pin.
-
-<p align="center">
-  <img src="HC_05__wiring.png" alt="HC_05__wiring" width="700">
-</p>
