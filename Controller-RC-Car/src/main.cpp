@@ -1,38 +1,40 @@
-//---------------------------------------//
-//  All the comments work is done by AI  //
-//---------------------------------------//
-
-
 #include <Arduino.h>
 #include <MPU6500.h>
 #include <SoftwareSerial.h>
+#include <MadgwickAHRS.h>
 
-// Low-pass filter for smoothing gyro readings
-class Filter
+Madgwick filter;
+class LPF
 {
 public:
-    float prevValue = 0;
     float alpha = 0.2;
+    float filteredValue = 0;
 
-    float lowPassFilter(float currentVlaue) // Low pass filter function
+    float lowPassFilter(float value)
     {
-        float filteredVlaue = (alpha * prevValue) + (1 - alpha) * currentVlaue;
-        prevValue = filteredVlaue;
-        return filteredVlaue;
-    };
+        filteredValue = alpha * filteredValue + (1 - alpha) * value;
+        return filteredValue;
+    }
 };
 
-// IMU, filters and Bluetooth interface
-MPU6500 imu;
-Filter filterX, filterY, filterZ;
-SoftwareSerial masterBT(10, 11); // RX, TX
+LPF lpfRoll, lpfPitch, lpfYaw;
 
-int moveCmd(float value);
+float accX, accY, accZ;
+float gyroX, gyroY, gyroZ;
+
+float roll, pitch, yaw;
+
+unsigned long lastTime = 0;
+
+MPU6500 imu;
+
+SoftwareSerial masterBT(10, 11); // RX, TX
 
 void setup()
 {
     Serial.begin(115200);
     masterBT.begin(9600);
+    filter.begin(100); // Initialize the Madgwick filter with a sample rate of 100 Hz
 
     // Initialize and verify MPU6500
     if (!imu.begin())
@@ -44,59 +46,39 @@ void setup()
         }
     }
     Serial.println("MPU6500 initialized");
+    imu.setSampleRateHz(100);
 }
-
 void loop()
 {
-    // Read current gyro data
-    imu.update();
-    Vec3 gyro = imu.gyroDps();
+    if (millis() - lastTime >= 10)
+    {
+        lastTime += 10;
+        imu.update();
+        Vec3 acc = imu.accelG();
+        Vec3 gyro = imu.gyroDps();
 
-    // Filter gyro data and convert it into movement commands
-    int X = moveCmd(filterX.lowPassFilter(gyro.x));
-    int Y = moveCmd(filterY.lowPassFilter(gyro.y));
+        accX = (acc.x - 0.015720) * 1.001828;
+        accY = (acc.y - 0.013856) * 0.999790;
+        accZ = (acc.z - (-0.034943)) * 1.001411;
 
-    // X-axis commands: 911 / 910
-    if ((X != 0) && (Y == 0))
-    {
-        masterBT.println(900 + X);
-        Serial.println(900 + X);
-    }
+        gyroX = gyro.x - (-0.10);
+        gyroY = gyro.y - 5.94;
+        gyroZ = gyro.z - 1.17;
 
-    // Y-axis commands: 811 / 810
-    if ((Y != 0) && (X == 0))
-    {
-        masterBT.println(800 + Y);
-        Serial.println(800 + Y);
-    }
-    delay(100);
-}
+        filter.updateIMU(gyroX, gyroY, gyroZ, accX, accY, accZ);
+        roll = lpfRoll.lowPassFilter(filter.getRoll());
 
-// Convert gyro direction into a 2-digit movement state.
-//
-// 1 = positive gyro direction
-// 0 = negative gyro direction
-//
-// The extra leading 1 is added to distinguish these movement states
-// from normal Boolean values (0/1):
-//
-//     11 -> ON  (positive gyro direction)
-//     10 -> OFF (negative gyro direction)
-//
-// The encoded value is later combined with the axis identifier (900,800)
-// to form the final Bluetooth command.
-int moveCmd(float value)
-{
-    if (value > 90)
-    {
-        return 11;
-    }
-    else if (value < -90)
-    {
-        return 10;
-    }
-    else
-    {
-        return 0;
+        pitch = lpfPitch.lowPassFilter(filter.getPitch());
+
+        float finalRoll = constrain(roll, -50, 50);
+        float finalPitch = constrain(pitch, -50, 50);
+
+        masterBT.print(finalRoll);
+        masterBT.print(",");
+        masterBT.print(finalPitch);
+
+        Serial.print(finalRoll);
+        Serial.print(",");
+        Serial.println(finalPitch);
     }
 }
