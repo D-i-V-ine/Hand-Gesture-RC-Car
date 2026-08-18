@@ -16,22 +16,19 @@ public:
     }
 };
 
-MPU6500 imu; // IMU object 
-Madgwick filter; // Sensor fusion: gyro + accelerometer
+MPU6500 imu;                     // IMU object
+Madgwick filter;                 // Sensor fusion: gyro + accelerometer
 SoftwareSerial masterBT(10, 11); // RX, TX
-LPF lpfRoll, lpfPitch; // Smooth final orientation
+LPF lpfRoll, lpfPitch;           // Smooth final orientation
 
 unsigned long lastTime = 0; // Used for 100 Hz timing
 const int redLed = 3;
-
+int sendCounter = 0;
 void setup()
 {
     pinMode(redLed, OUTPUT);
 
-    masterBT.begin(9600); // HC-05 baud rate
-    filter.begin(100); // Madgwick update rate
-
-    imu.setSampleRateHz(100); // IMU sample rate in Hz
+    masterBT.begin(38400); // HC-05 baud rate
 
     if (!imu.begin())
     {
@@ -41,6 +38,9 @@ void setup()
             delay(1000);
         }
     }
+    Serial.begin(115200);
+    filter.begin(100);        // Madgwick update rate
+    imu.setSampleRateHz(100); // IMU sample rate
 }
 
 void loop()
@@ -51,7 +51,7 @@ void loop()
 
         imu.update();
 
-        Vec3 acc = imu.accelG(); // Acceleration in g
+        Vec3 acc = imu.accelG();   // Acceleration in g
         Vec3 gyro = imu.gyroDps(); // Gyroscope in °/s
 
         // Accelerometer calibration
@@ -71,11 +71,22 @@ void loop()
         float pitch = lpfPitch.lowPassFilter(filter.getPitch());
 
         // Limit the orientation range used for gestures
-        float finalRoll = constrain(roll, -50, 50);
-        float finalPitch = constrain(pitch, -50, 50);
+        int finalRoll = (int)constrain(roll, -50, 50);
+        int finalPitch = (int)constrain(pitch, -50, 50);
 
-        masterBT.print(finalRoll); // Send Roll
-        masterBT.print(",");
-        masterBT.println(finalPitch); // Send Pitch
+        sendCounter++;
+        if (sendCounter >= 5)
+        {
+            sendCounter = 0;
+
+            masterBT.print(finalRoll, 2);
+            masterBT.print(",");
+            masterBT.println(finalPitch, 2);
+
+            Serial.print("SENT: ");
+            Serial.print(finalRoll, 2);
+            Serial.print(",");
+            Serial.println(finalPitch, 2);
+        }
     }
 }
