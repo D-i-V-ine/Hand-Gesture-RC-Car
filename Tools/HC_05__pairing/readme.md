@@ -135,7 +135,6 @@ The controller Nano sends the **movement commands generated from hand orientatio
 
 > **Note:** When using a 5 V Arduino Nano, use a voltage divider on the **Arduino TX → HC-05 RX** line.
 
-![HC-05 Wiring](Tools/HC_05__pairing/HC_05__wiring.png)
 
 <h3 align="center">Wiring</h3>
 
