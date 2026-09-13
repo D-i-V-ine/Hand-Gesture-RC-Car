@@ -1,139 +1,149 @@
 #include <Arduino.h>
 #include <SoftwareSerial.h>
 
-int IN1 = 4;
-int IN2 = 5;
-int IN3 = 6;
-int IN4 = 7;
-
-int stateX = 0;
-int stateY = 0;
-
-void forward();
-void stop();
-void reverse();
-void right();
-void left();
-
 SoftwareSerial slaveBT(10, 11); // RX, TX
+
+int ENA = 3;
+int IN1 = 4;
+int IN2 = 12;
+
+int ENB = 5;
+int IN3 = 7;
+int IN4 = 8;
+
+unsigned long lastTime = 0;
 
 void setup()
 {
-  slaveBT.begin(9600);
-  pinMode(IN3, OUTPUT);
-  pinMode(IN4, OUTPUT);
+  Serial.begin(115200);
+  slaveBT.begin(38400);
+  slaveBT.setTimeout(20);
+
+  while (slaveBT.available())
+  {
+    slaveBT.read();
+  }
+  pinMode(ENA, OUTPUT);
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
+  pinMode(ENB, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+
+  analogWrite(ENA, 0);
+  analogWrite(ENB, 0);
+
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
 }
 
 void loop()
 {
-
   if (slaveBT.available())
   {
-    String command = slaveBT.readStringUntil('\n');
-    int input = command.toInt(); // Read the incoming data from the Bluetooth serial port
+    String input = slaveBT.readStringUntil('\n');
 
-    switch (input)
+    int comma = input.indexOf(',');
+
+    if (comma != -1)
     {
-    case 911:
-      stateY = 0;
-      if (stateX == 0)
-      {
-        forward();
-        stateX = 1;
-      }
-      else if (stateX == -1)
-      {
-        stop();
-        stateX = 0;
-      }
-      break;
+      int roll = input.substring(0, comma).toInt();
+      int pitch = input.substring(comma + 1).toInt();
 
-    case 910:
-      stateY = 0;
-      if (stateX == 0)
-      {
-        reverse();
-        stateX = -1;
-      }
-      else if (stateX == 1)
-      {
-        stop();
-        stateX = 0;
-      }
-      break;
+      lastTime = millis();
+      int rollMotorIp;
+      int pitchMotorIp;
 
-    case 811:
-      stateX = 0;
-      if (stateY == 0)
+      if (abs(roll) < 9)
       {
-        right();
-        stateY = 1;
+        rollMotorIp = 0;
       }
-      else if (stateY == -1)
+      else
       {
-        stop();
-        stateY = 0;
+        rollMotorIp = constrain(map(roll, -50, 50, -255, 255), -255, 255);
       }
-      break;
+      if (abs(pitch) < 9)
+      {
+        pitchMotorIp = 0;
+      }
+      else
+      {
+        pitchMotorIp = constrain(map(pitch, -50, 50, -255, 255), -255, 255);
+      }
 
-    case 810:
-      stateX = 0;
-      if (stateY == 0)
+      Serial.print("Roll: ");
+      Serial.println(rollMotorIp);
+
+      Serial.print("Pitch: ");
+      Serial.println(pitchMotorIp);
+
+      if (abs(rollMotorIp) + 15 < abs(pitchMotorIp) )
       {
-        left();
-        stateY = -1;
+        analogWrite(ENA, abs(pitchMotorIp));
+        analogWrite(ENB, abs(pitchMotorIp));
+        // right turn
+        if (pitchMotorIp > 0)
+        {
+
+          digitalWrite(IN1, LOW);
+          digitalWrite(IN2, HIGH);
+          digitalWrite(IN3, HIGH);
+          digitalWrite(IN4, LOW);
+        }
+        // left turn
+        else
+        {
+          digitalWrite(IN1, HIGH);
+          digitalWrite(IN2, LOW);
+          digitalWrite(IN3, LOW);
+          digitalWrite(IN4, HIGH);
+        }
       }
-      else if (stateY == 1)
+      else if (abs(rollMotorIp) > abs(pitchMotorIp)  + 15)
       {
-        stop();
-        stateY = 0;
+        analogWrite(ENA, abs(rollMotorIp));
+        analogWrite(ENB, abs(rollMotorIp));
+        if (rollMotorIp > 0)
+        {
+          // Forward
+          digitalWrite(IN1, HIGH);
+          digitalWrite(IN2, LOW);
+          digitalWrite(IN3, HIGH);
+          digitalWrite(IN4, LOW);
+        }
+        else
+        {
+          // Reverse
+          digitalWrite(IN1, LOW);
+          digitalWrite(IN2, HIGH);
+          digitalWrite(IN3, LOW);
+          digitalWrite(IN4, HIGH);
+        }
       }
-      break;
-    default:
-      stop();
-      break;
+
+      else
+      {
+        analogWrite(ENA, 0);
+        analogWrite(ENB, 0);
+
+        digitalWrite(IN1, LOW);
+        digitalWrite(IN2, LOW);
+        digitalWrite(IN3, LOW);
+        digitalWrite(IN4, LOW);
+      }
     }
   }
+  if (millis() - lastTime > 100)
+  {
+    analogWrite(ENA, 0);
+    analogWrite(ENB, 0);
+
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, LOW);
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, LOW);
+    delay(100);
+  }
 }
-
-void forward()
-{
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-};
-
-void stop()
-{
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, LOW);
-};
-void reverse()
-{
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
-};
-
-void left()
-{
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
-};
-void right()
-{
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-};
-
-
