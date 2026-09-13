@@ -6,7 +6,7 @@
 class LPF
 {
 public:
-    float alpha = 0.2; // Higher = smoother, but more lag
+    float alpha = 0.2; 
     float filteredValue = 0;
 
     float lowPassFilter(float value)
@@ -16,20 +16,24 @@ public:
     }
 };
 
-MPU6500 imu;                     // IMU object
-Madgwick filter;                 // Sensor fusion: gyro + accelerometer
-SoftwareSerial masterBT(10, 11); // RX, TX
-LPF lpfRoll, lpfPitch;           // Smooth final orientation
+// Sensor and communication objects
+MPU6500 imu;
+Madgwick filter;
+SoftwareSerial masterBT(10, 11);
+LPF lpfRoll, lpfPitch;
 
-unsigned long lastTime = 0; // Used for 100 Hz timing
+// Timing and status
+unsigned long lastTime = 0;
 const int redLed = 3;
 int sendCounter = 0;
+
 void setup()
 {
     pinMode(redLed, OUTPUT);
 
-    masterBT.begin(38400); // HC-05 baud rate
+    masterBT.begin(38400);
 
+    // Stop execution if the IMU cannot be initialized
     if (!imu.begin())
     {
         digitalWrite(redLed, HIGH);
@@ -38,35 +42,39 @@ void setup()
             delay(1000);
         }
     }
+
     Serial.begin(115200);
-    filter.begin(100);        // Madgwick update rate
-    imu.setSampleRateHz(100); // IMU sample rate
+
+    // Configure the IMU and Madgwick filter for 100 Hz
+    filter.begin(100);
+    imu.setSampleRateHz(100);
 }
 
 void loop()
 {
-    if (millis() - lastTime >= 10) // Run at ~100 Hz
+    if (millis() - lastTime >= 10)
     {
         lastTime += 10;
 
         imu.update();
 
-        Vec3 acc = imu.accelG();   // Acceleration in g
-        Vec3 gyro = imu.gyroDps(); // Gyroscope in °/s
+        Vec3 acc = imu.accelG();
+        Vec3 gyro = imu.gyroDps();
 
-        // Accelerometer calibration
+        // Apply accelerometer calibration
         float accX = (acc.x - 0.015720) * 1.001828;
         float accY = (acc.y - 0.013856) * 0.999790;
         float accZ = (acc.z - (-0.034943)) * 1.001411;
 
-        // Gyroscope bias correction
+        // Apply gyroscope bias correction
         float gyroX = gyro.x - (-0.10);
         float gyroY = gyro.y - 5.94;
         float gyroZ = gyro.z - 1.17;
 
+        // Estimate orientation from the calibrated IMU data
         filter.updateIMU(gyroX, gyroY, gyroZ, accX, accY, accZ);
 
-        // Madgwick → LPF
+        // Smooth the estimated orientation
         float roll = lpfRoll.lowPassFilter(filter.getRoll());
         float pitch = lpfPitch.lowPassFilter(filter.getPitch());
 
@@ -76,7 +84,7 @@ void loop()
 
         sendCounter++;
 
-        // Send the data every 5th iteration ie 20Hz
+        // Transmit orientation data at 20 Hz
         if (sendCounter >= 5)
         {
             sendCounter = 0;
