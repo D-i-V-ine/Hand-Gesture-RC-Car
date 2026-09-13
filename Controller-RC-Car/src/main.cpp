@@ -71,10 +71,12 @@ void loop()
         float pitch = lpfPitch.lowPassFilter(filter.getPitch());
 
         // Limit the orientation range used for gestures
-        int finalRoll = (int)constrain(roll, -50, 50);
-        int finalPitch = (int)constrain(pitch, -50, 50);
+        float finalRoll = constrain(roll, -50.0f, 50.0f);
+        float finalPitch = constrain(pitch, -50.0f, 50.0f);
 
         sendCounter++;
+
+        // Send the data every 5th iteration ie 20Hz
         if (sendCounter >= 5)
         {
             sendCounter = 0;
@@ -84,9 +86,9 @@ void loop()
             masterBT.println(finalPitch, 2);
 
             Serial.print("SENT: ");
-            Serial.print(finalRoll, 2);
+            Serial.print(finalRoll);
             Serial.print(",");
-            Serial.println(finalPitch, 2);
+            Serial.println(finalPitch);
         }
     }
 }
